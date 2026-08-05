@@ -87,7 +87,7 @@ def run_policy_agent(order_id: str, order_seller: dict, delivery: dict, payment:
         return _result(
             primary_issue="canceled_order_paid",
             case_status="action_required",
-            confidence=0.95,
+            confidence=0.97,
             cause_code=CAUSE_CANCELED,
             responsible=[{"party_type": "platform", "party_id": PLATFORM_PARTY}],
             recommended_refund=payment_total,
@@ -103,7 +103,7 @@ def run_policy_agent(order_id: str, order_seller: dict, delivery: dict, payment:
         return _result(
             primary_issue="unavailable_order_paid",
             case_status="action_required",
-            confidence=0.95,
+            confidence=0.97,
             cause_code=CAUSE_UNAVAILABLE,
             responsible=[{"party_type": "platform", "party_id": PLATFORM_PARTY}],
             recommended_refund=payment_total,
@@ -127,7 +127,7 @@ def run_policy_agent(order_id: str, order_seller: dict, delivery: dict, payment:
         return _result(
             primary_issue="late_delivery_seller",
             case_status="action_required",
-            confidence=0.9,
+            confidence=0.93,
             cause_code=CAUSE_SELLER_LATE,
             responsible=[{"party_type": "seller", "party_id": sid} for sid in late_seller_ids[:3]],
             recommended_refund=freight_total,
@@ -143,7 +143,7 @@ def run_policy_agent(order_id: str, order_seller: dict, delivery: dict, payment:
         return _result(
             primary_issue="late_delivery_logistics",
             case_status="action_required",
-            confidence=0.9,
+            confidence=0.93,
             cause_code=CAUSE_CARRIER_LATE,
             responsible=[{"party_type": "logistics_provider", "party_id": LOGISTICS_PARTY}],
             recommended_refund=freight_total,
@@ -162,7 +162,7 @@ def run_policy_agent(order_id: str, order_seller: dict, delivery: dict, payment:
         return _result(
             primary_issue="valid_split_payment",
             case_status="no_action",
-            confidence=0.85,
+            confidence=0.9,
             cause_code=CAUSE_SPLIT_PAYMENT,
             responsible=[],
             recommended_refund=0.0,
@@ -178,7 +178,7 @@ def run_policy_agent(order_id: str, order_seller: dict, delivery: dict, payment:
         return _result(
             primary_issue="unsupported_late_claim",
             case_status="no_action",
-            confidence=0.85,
+            confidence=0.9,
             cause_code=CAUSE_WITHIN_ESTIMATE,
             responsible=[],
             recommended_refund=0.0,

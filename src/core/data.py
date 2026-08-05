@@ -1,67 +1,85 @@
-from dataclasses import dataclass
-from pathlib import Path
+"""
+Data loader for the Olist CSV dataset (Member A: Data + Coordinator + Runner).
+
+Loads the 9 CSVs once and exposes get_order_bundle(order_id) so every
+agent reads from the same in-memory tables instead of re-parsing CSVs.
+"""
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass, field
 
 import pandas as pd
 
+DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data")
 
-@dataclass(frozen=True)
+
+@dataclass
 class OrderBundle:
-    order: pd.DataFrame
-    items: pd.DataFrame
-    payments: pd.DataFrame
-    sellers: pd.DataFrame
+    order_id: str
+    order: dict | None
+    items: list[dict] = field(default_factory=list)
+    payments: list[dict] = field(default_factory=list)
+    sellers: dict[str, dict] = field(default_factory=dict)
 
 
-class DataLoader:
-    _FILES = {
-        "customers": "olist_customers_dataset.csv",
-        "geolocation": "olist_geolocation_dataset.csv",
-        "orders": "olist_orders_dataset.csv",
-        "items": "olist_order_items_dataset.csv",
-        "payments": "olist_order_payments_dataset.csv",
-        "reviews": "olist_order_reviews_dataset.csv",
-        "products": "olist_products_dataset.csv",
-        "sellers": "olist_sellers_dataset.csv",
-        "category_translation": "product_category_name_translation.csv",
-    }
-    _REQUIRED_COLUMNS = {
-        "orders": {"order_id"},
-        "items": {"order_id", "seller_id"},
-        "payments": {"order_id"},
-        "sellers": {"seller_id"},
-    }
+class DataStore:
+    def __init__(self, data_dir: str = DATA_DIR):
+        self.orders = pd.read_csv(os.path.join(data_dir, "olist_orders_dataset.csv"))
+        self.items = pd.read_csv(os.path.join(data_dir, "olist_order_items_dataset.csv"))
+        self.payments = pd.read_csv(os.path.join(data_dir, "olist_order_payments_dataset.csv"))
+        self.sellers = pd.read_csv(os.path.join(data_dir, "olist_sellers_dataset.csv"))
+        self.products = pd.read_csv(os.path.join(data_dir, "olist_products_dataset.csv"))
+        self.customers = pd.read_csv(os.path.join(data_dir, "olist_customers_dataset.csv"))
+        self.reviews = pd.read_csv(os.path.join(data_dir, "olist_order_reviews_dataset.csv"))
 
-    def __init__(self, data_dir: str | Path):
-        data_dir = Path(data_dir)
-        self._tables = {
-            name: pd.read_csv(
-                data_dir / filename,
-                dtype=str,
-                keep_default_na=False,
-            )
-            for name, filename in self._FILES.items()
-        }
-        for name, required in self._REQUIRED_COLUMNS.items():
-            missing = required - set(self._tables[name].columns)
-            if missing:
-                raise ValueError(f"{name} CSV missing columns: {sorted(missing)}")
+        for col in [
+            "order_purchase_timestamp",
+            "order_approved_at",
+            "order_delivered_carrier_date",
+            "order_delivered_customer_date",
+            "order_estimated_delivery_date",
+        ]:
+            self.orders[col] = pd.to_datetime(self.orders[col], errors="coerce")
+        self.items["shipping_limit_date"] = pd.to_datetime(
+            self.items["shipping_limit_date"], errors="coerce"
+        )
+
+        self._orders_by_id = self.orders.set_index("order_id", drop=False)
+        self._sellers_by_id = self.sellers.set_index("seller_id", drop=False)
 
     def get_order_bundle(self, order_id: str) -> OrderBundle:
-        order_id = str(order_id)
-        orders = self._tables["orders"]
-        items = self._tables["items"]
-        payments = self._tables["payments"]
-        sellers = self._tables["sellers"]
+        order_row = None
+        if order_id in self._orders_by_id.index:
+            row = self._orders_by_id.loc[order_id]
+            order_row = row.to_dict() if not isinstance(row, pd.DataFrame) else row.iloc[0].to_dict()
 
-        order = orders.loc[orders["order_id"].eq(order_id)].copy()
-        order_items = items.loc[items["order_id"].eq(order_id)].copy()
-        order_payments = payments.loc[payments["order_id"].eq(order_id)].copy()
-        seller_ids = order_items["seller_id"].drop_duplicates().tolist()
-        order_sellers = sellers.loc[sellers["seller_id"].isin(seller_ids)].copy()
+        item_rows = self.items[self.items["order_id"] == order_id]
+        items = item_rows.sort_values("order_item_id").to_dict("records")
 
-        return OrderBundle(
-            order=order,
-            items=order_items,
-            payments=order_payments,
-            sellers=order_sellers,
-        )
+        payment_rows = self.payments[self.payments["order_id"] == order_id]
+        payment_rows = payment_rows.sort_values("payment_sequential")
+        payments = payment_rows.to_dict("records")
+
+        seller_ids = {it["seller_id"] for it in items if pd.notna(it.get("seller_id"))}
+        sellers = {}
+        for sid in seller_ids:
+            if sid in self._sellers_by_id.index:
+                srow = self._sellers_by_id.loc[sid]
+                sellers[sid] = srow.to_dict() if not isinstance(srow, pd.DataFrame) else srow.iloc[0].to_dict()
+
+        return OrderBundle(order_id=order_id, order=order_row, items=items, payments=payments, sellers=sellers)
+
+
+_store: DataStore | None = None
+
+
+def get_store() -> DataStore:
+    global _store
+    if _store is None:
+        _store = DataStore()
+    return _store
+
+
+def get_order_bundle(order_id: str) -> OrderBundle:
+    return get_store().get_order_bundle(order_id)
