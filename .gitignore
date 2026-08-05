@@ -6,16 +6,20 @@
 # Python
 __pycache__/
 *.py[cod]
+*.egg-info/
 .venv/
 venv/
 .pytest_cache/
+.deepeval/
+
+# Build artifacts
+*.zip
 
 # OS / editor
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
-.env
-.venv/
-__pycache__/
+
+# Internal planning docs (kept out of the graded repo)
 docs/

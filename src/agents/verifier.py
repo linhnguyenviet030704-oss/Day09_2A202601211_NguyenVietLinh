@@ -120,12 +120,23 @@ def run_verifier_agent(
     if assessment["case_status"] == "no_action" and refund != 0:
         errors.append(f"no_action but recommended_refund_brl={refund} (should be 0)")
 
+    # Seller evidence should only be cited when a seller is actually the
+    # responsible party (late_delivery_seller). For every other rule the
+    # seller is not part of what's being asserted (platform/logistics/no
+    # responsible party), so including it is irrelevant evidence -- it
+    # doesn't get flagged as "fabricated" (the seller_id is real) but it
+    # doesn't support the decision either, which hurts evidence quality.
+    responsible_seller_ids = {
+        p["party_id"] for p in responsible_parties if p.get("party_type") == "seller"
+    }
+    evidence_seller_ids = [s for s in seller_ids if s in responsible_seller_ids]
+
     evidence_ids: list[str] = [f"order:{order_id}"]
     for iid in item_ids:
         evidence_ids.append(f"item:{iid}")
     for pid in payment_ids:
         evidence_ids.append(f"payment:{pid}")
-    for sid in seller_ids:
+    for sid in evidence_seller_ids:
         evidence_ids.append(f"seller:{sid}")
     cause_code = policy_result.get("_cause_code")
     if cause_code:
