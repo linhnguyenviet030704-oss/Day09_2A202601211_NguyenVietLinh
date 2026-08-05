@@ -1,0 +1,30 @@
+{
+  "run_date": "2026-08-05",
+  "case_count": 50,
+  "policy_version": "EC_POLICY_V1",
+  "model": {
+    "name": "google/gemma-3-4b-it",
+    "provider": "OpenRouter (OpenAI-compatible API)",
+    "parameter_size": "4B (publicly disclosed by Google, confirmed <=10B)",
+    "usage": "Coordinator-only, one best-effort triage call per case (cross-checks customer free-text claim against the deterministic assessment); does not influence primary_issue, financial_resolution, or evidence_ids",
+    "note": "Gemma 2 9B / Gemma 3 9B ('Gemma 9B') is no longer served by Google AI Studio or OpenRouter (verified via their model-list APIs, both 404 on gemma-2-9b-it/gemma-3-9b-it as of run_date). gemma-3-4b-it is the closest available Gemma model with a disclosed parameter count under the cap."
+  },
+  "decision_logic": {
+    "type": "deterministic rule engine",
+    "agents": ["order_seller", "delivery", "payment", "policy", "verifier"],
+    "rationale": "primary_issue / responsible_party / financial_resolution / evidence_ids are computed by direct comparison and arithmetic over CSV-derived facts (see architecture.md section 3), not by LLM judgment, to guarantee correctness and reproducibility"
+  },
+  "framework": {
+    "language": "Python",
+    "language_version": "3.13.12",
+    "data_processing": "pandas 3.0.3",
+    "llm_sdk": "openai 2.41.0 (pointed at OpenRouter's OpenAI-compatible endpoint)",
+    "test_framework": "pytest 9.1.1",
+    "agent_orchestration": "custom (no external multi-agent framework); modules communicate via a shared JSON contract, dispatched by agents/coordinator.py"
+  },
+  "runtime": {
+    "os": "Windows 11",
+    "entry_point": "run.py",
+    "data_source": "data/*.csv (Brazilian E-Commerce Public Dataset by Olist)"
+  }
+}
