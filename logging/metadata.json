@@ -1,0 +1,24 @@
+{
+  "system": "K3 Day09 - Multi-Agent E-commerce Dispute Resolution",
+  "framework": "Custom Python multi-agent orchestration over the openai-python SDK (OpenAI-compatible chat completions API)",
+  "runtime": {
+    "language": "Python",
+    "version": "3.11",
+    "os": "Windows 11"
+  },
+  "model": {
+    "name": "gpt-4o-mini",
+    "provider": "openai",
+    "parameter_size": "not publicly disclosed by OpenAI; selected by the team under the <=10B-per-agent rule",
+    "temperature": 0.0,
+    "response_format": "json_object"
+  },
+  "agents": [
+    { "name": "coordinator",        "owner": "member_a", "model": "gpt-4o-mini" },
+    { "name": "order_seller_agent", "owner": "member_b", "model": "gpt-4o-mini" },
+    { "name": "delivery_agent",     "owner": "member_b", "model": "gpt-4o-mini" },
+    { "name": "payment_agent",      "owner": "member_c", "model": "gpt-4o-mini" },
+    { "name": "policy_agent",       "owner": "member_c", "model": "gpt-4o-mini" },
+    { "name": "verifier_agent",     "owner": "member_c", "model": "gpt-4o-mini" }
+  ]
+}
