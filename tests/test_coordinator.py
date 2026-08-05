@@ -133,6 +133,75 @@ class CoordinatorTests(unittest.TestCase):
                 "policy_version": "EC_POLICY_V1",
             })
 
+    def test_evidence_only_includes_seller_for_seller_responsibility(self):
+        bundle = OrderBundle(
+            order=pd.DataFrame(),
+            items=pd.DataFrame([
+                {"order_id": "o1", "order_item_id": "1", "seller_id": "s1"},
+            ]),
+            payments=pd.DataFrame([
+                {"order_id": "o1", "payment_sequential": "1"},
+            ]),
+            sellers=pd.DataFrame(),
+        )
+        facts = {
+            "order_seller": {"items": [], "seller_ids": []},
+            "payment": {"payment_total": 10, "item_total": 8, "freight_total": 2},
+        }
+        decision = {
+            "primary_issue": "late_delivery_logistics",
+            "case_status": "action_required",
+            "confidence": 0.9,
+            "ranked_causes": [{"cause_code": "CARRIER_DELIVERED_AFTER_ESTIMATE", "rank": 1}],
+            "responsible_parties": [{"party_type": "logistics_provider", "party_id": "LOGISTICS_PROVIDER"}],
+            "recommended_refund_brl": 2,
+            "resolution_actions": ["refund_freight"],
+        }
+
+        output = Coordinator._assemble_output("EC_001", "o1", bundle, facts, decision)
+
+        self.assertEqual(output["evidence_ids"], [
+            "order:o1",
+            "item:o1:1",
+            "payment:o1:1",
+            "policy:CARRIER_DELIVERED_AFTER_ESTIMATE",
+        ])
+
+    def test_payment_evidence_is_sorted_by_payment_sequence(self):
+        bundle = OrderBundle(
+            order=pd.DataFrame(),
+            items=pd.DataFrame([
+                {"order_id": "o1", "order_item_id": "1", "seller_id": "s1"},
+            ]),
+            payments=pd.DataFrame([
+                {"order_id": "o1", "payment_sequential": "2"},
+                {"order_id": "o1", "payment_sequential": "1"},
+            ]),
+            sellers=pd.DataFrame(),
+        )
+        facts = {
+            "order_seller": {"items": [], "seller_ids": []},
+            "payment": {"payment_total": 10, "item_total": 8, "freight_total": 2},
+        }
+        decision = {
+            "primary_issue": "valid_split_payment",
+            "case_status": "no_action",
+            "confidence": 0.85,
+            "ranked_causes": [{"cause_code": "MULTIPLE_PAYMENTS_RECONCILED", "rank": 1}],
+            "responsible_parties": [],
+            "recommended_refund_brl": 0,
+            "resolution_actions": ["explain_valid_split_payment"],
+        }
+
+        output = Coordinator._assemble_output("EC_001", "o1", bundle, facts, decision)
+
+        self.assertEqual(output["evidence_ids"], [
+            "order:o1",
+            "payment:o1:1",
+            "payment:o1:2",
+            "policy:MULTIPLE_PAYMENTS_RECONCILED",
+        ])
+
 
 if __name__ == "__main__":
     unittest.main()

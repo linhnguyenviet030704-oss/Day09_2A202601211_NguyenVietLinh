@@ -166,14 +166,22 @@ class Coordinator:
         causes = decision.get("ranked_causes") or cls._single_cause(decision.get("root_cause_code"))
         causes = list(causes or [])[:3]
         parties = list(decision.get("responsible_parties") or [])[:3]
-        evidence_ids = cls._cap_unique(
-            [f"order:{order_id}"]
-            + [f"item:{item_id}" for item_id in item_ids]
-            + [f"payment:{payment_id}" for payment_id in payment_ids]
-            + [f"seller:{seller_id}" for seller_id in seller_ids]
-            + [f"policy:{cause.get('cause_code')}" for cause in causes if cause.get("cause_code")],
-            10,
-        )
+        order_evidence = [f"order:{order_id}"]
+        item_evidence = [f"item:{item_id}" for item_id in item_ids]
+        payment_evidence = [f"payment:{payment_id}" for payment_id in payment_ids]
+        seller_evidence = [f"seller:{seller_id}" for seller_id in seller_ids]
+        policy_evidence = [f"policy:{cause.get('cause_code')}" for cause in causes if cause.get("cause_code")]
+        issue = decision["primary_issue"]
+        seller_is_responsible = any(party.get("party_type") == "seller" for party in parties)
+        if seller_is_responsible:
+            evidence = order_evidence + item_evidence + payment_evidence + seller_evidence + policy_evidence
+        elif issue in {"late_delivery_logistics", "unsupported_late_claim"}:
+            evidence = order_evidence + item_evidence + payment_evidence + policy_evidence
+        elif issue in {"canceled_order_paid", "unavailable_order_paid", "valid_split_payment"}:
+            evidence = order_evidence + payment_evidence + policy_evidence
+        else:
+            evidence = order_evidence + policy_evidence
+        evidence_ids = cls._cap_unique(evidence, 10)
         has_items = bool(item_ids)
         item_total = cls._money(payment.get("item_total")) if has_items else 0.0
         freight_total = cls._money(payment.get("freight_total")) if has_items else 0.0
@@ -224,8 +232,10 @@ class Coordinator:
     @staticmethod
     def _bundle_payment_ids(order_id, bundle, handoff):
         if not bundle.payments.empty and "payment_sequential" in bundle.payments:
-            return [f"{order_id}:{value}" for value in bundle.payments["payment_sequential"].tolist()]
-        return [f"{order_id}:{payment.get('sequential')}" for payment in handoff.get("payments", []) if payment.get("sequential")]
+            values = bundle.payments["payment_sequential"].tolist()
+        else:
+            values = [payment.get("sequential") for payment in handoff.get("payments", []) if payment.get("sequential")]
+        return [f"{order_id}:{value}" for value in sorted(values, key=lambda value: int(value))]
 
     @staticmethod
     def _cap_unique(values, limit):

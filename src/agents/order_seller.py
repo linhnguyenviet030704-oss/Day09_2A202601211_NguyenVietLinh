@@ -27,7 +27,8 @@ Output (finding dict, consumed by Policy — Member C):
       "items": [ {item_id, seller_id, price, freight_value, shipping_limit_date}, ... ],
       "delivered_carrier_date": str|None,
       "seller_handoff_late": bool,   # any item: carrier_date > shipping_limit_date
-      "late_sellers": [seller_id, ...],
+      "late_seller_ids": [seller_id, ...],
+      "late_item_ids": [item_id, ...],
       "confidence": float,
       "rationale": str
     }
@@ -55,6 +56,7 @@ def _extract(bundle: dict) -> dict:
     items_out = []
     seller_ids = []
     late_sellers = []
+    late_items = []
     for raw in bundle.get("items", []) or []:
         item_id = str(raw.get("order_item_id", raw.get("item_id", "")))
         seller_id = raw.get("seller_id")
@@ -76,6 +78,8 @@ def _extract(bundle: dict) -> dict:
             seller_ids.append(seller_id)
         if item_late and seller_id and seller_id not in late_sellers:
             late_sellers.append(seller_id)
+        if item_late and item_id and item_id not in late_items:
+            late_items.append(item_id)
 
     return {
         "order_id": bundle.get("order_id"),
@@ -85,6 +89,8 @@ def _extract(bundle: dict) -> dict:
         "delivered_carrier_date": bundle.get("order_delivered_carrier_date"),
         "seller_handoff_late": len(late_sellers) > 0,
         "late_sellers": late_sellers,
+        "late_seller_ids": late_sellers,
+        "late_item_ids": late_items,
     }
 
 

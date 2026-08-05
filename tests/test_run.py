@@ -7,7 +7,7 @@ import pandas as pd
 
 from src.core.coordinator import AgentSet
 from src.core.data import OrderBundle
-from src.run import run_batch
+from src.run import load_integrated_agents, run_batch
 
 
 class BatchRunnerTests(unittest.TestCase):
@@ -58,9 +58,18 @@ class BatchRunnerTests(unittest.TestCase):
             trace_lines = (logging_dir / "trace.jsonl").read_text(encoding="utf-8").splitlines()
             self.assertEqual(len(trace_lines), 50)
             metadata = json.loads((logging_dir / "metadata.json").read_text(encoding="utf-8"))
-            self.assertEqual(metadata["model"], "llama-3.1-8b-instant")
+            self.assertEqual(metadata["model"], "gpt-4o-mini")
             self.assertEqual(metadata["parameter_size"], "8B")
             self.assertEqual(json.loads((output_dir / "EC_050.json").read_text())["case_id"], "EC_050")
+
+    def test_load_integrated_agents_returns_coordinator_callables(self):
+        agents = load_integrated_agents()
+
+        self.assertTrue(callable(agents.order_seller))
+        self.assertTrue(callable(agents.payment))
+        self.assertTrue(callable(agents.delivery))
+        self.assertTrue(callable(agents.policy))
+        self.assertTrue(callable(agents.verifier))
 
 
 if __name__ == "__main__":
