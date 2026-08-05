@@ -4,11 +4,11 @@ Coordinator Agent (Member A).
 Dispatches a case to the investigation agents (Order/Seller, Delivery),
 the reconciliation agent (Payment), the rule engine (Policy), and the
 Verifier gate, then assembles/writes the final output schema (README
-section 6). Also runs one LLM (gpt-4o-mini) triage call per case that
-cross-checks the customer's free-text claim against the deterministic
-findings; this is informational only (logged to trace.jsonl) and never
-overrides the deterministic decision, so an LLM hiccup cannot corrupt
-output/EC_*.json.
+section 6). Also runs one LLM (google/gemma-3-4b-it, see
+core/llm_client.py) triage call per case that cross-checks the
+customer's free-text claim against the deterministic findings; this is
+informational only (logged to trace.jsonl) and never overrides the
+deterministic decision, so an LLM hiccup cannot corrupt output/EC_*.json.
 
 Handoff order: Order/Seller + Delivery + Payment (parallel-ish facts)
 -> Policy (decision) -> Verifier (gate) -> Coordinator (write).

@@ -2,7 +2,15 @@
 Shared LLM client wrapper (Member A: Data + Coordinator + Runner).
 
 Model declared here per README section 9.1 (must be in code, not .env):
-gpt-4o-mini via the OpenAI API, using OPENAI_API_KEY from .env.
+google/gemma-3-4b-it (4B params, publicly disclosed, satisfies the
+<=10B rule) via OpenRouter's OpenAI-compatible API, using
+OPENROUTER_API_KEY from .env.
+
+Note: Gemma 2 9B / Gemma 3 9B ("Gemma 9B") is no longer served by
+either Google AI Studio or OpenRouter as of this run (confirmed via
+their model-list APIs; both return 404 for gemma-2-9b-it /
+gemma-3-9b-it). gemma-3-4b-it is the closest available Gemma model
+with a disclosed, verifiable parameter count under the 10B cap.
 """
 from __future__ import annotations
 
@@ -11,7 +19,8 @@ import os
 
 from openai import OpenAI
 
-MODEL_NAME = "gpt-4o-mini"
+MODEL_NAME = "google/gemma-3-4b-it"
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 _client: OpenAI | None = None
 
@@ -19,10 +28,10 @@ _client: OpenAI | None = None
 def get_client() -> OpenAI:
     global _client
     if _client is None:
-        api_key = os.environ.get("OPENAI_API_KEY")
+        api_key = os.environ.get("OPENROUTER_API_KEY")
         if not api_key:
-            raise RuntimeError("OPENAI_API_KEY is not set in the environment (.env)")
-        _client = OpenAI(api_key=api_key)
+            raise RuntimeError("OPENROUTER_API_KEY is not set in the environment (.env)")
+        _client = OpenAI(api_key=api_key, base_url=OPENROUTER_BASE_URL)
     return _client
 
 

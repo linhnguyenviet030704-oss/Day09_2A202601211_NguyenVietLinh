@@ -5,3 +5,6 @@ __pycache__/
 venv/
 *.egg-info/
 .pytest_cache/
+.deepeval/
+output.zip
+*.zip

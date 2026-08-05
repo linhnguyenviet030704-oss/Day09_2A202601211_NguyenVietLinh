@@ -66,7 +66,7 @@ input/EC_xxx.json
           output/EC_xxx.json           KHÔNG ghi file (hard gate)
                      |
                      v
-          Coordinator gọi gpt-4o-mini (triage, best-effort,
+          Coordinator gọi google/gemma-3-4b-it (triage, best-effort,
           không override quyết định) -> ghi vào logging/trace.jsonl
 ```
 
@@ -92,7 +92,7 @@ payment:      {payments[{sequential,value}], payment_total, item_total, freight_
 | Policy | `agents/policy.py` | contract `order_seller` + `delivery` + `payment` | `assessment`, `affected_entities`, `root_cause_analysis`, `financial_resolution`, `resolution_actions` (+ `_cause_code` nội bộ) | Không truy cập CSV trực tiếp, chỉ nhận JSON từ 3 agent trên |
 | Verifier | `agents/verifier.py` | output của Policy + contract `order_seller`/`payment` (để đối chiếu ID) | `(is_valid, errors, final_case_dict)` | Không import `core/data.py`; chỉ tin dữ liệu được truyền vào — mọi evidence ID phải khớp với `order_seller.items`/`seller_ids` hoặc `payment.payments` |
 | Data loader | `core/data.py` | 9 CSV trong `data/` | `get_order_bundle(order_id)` | Nguồn dữ liệu gốc duy nhất, load 1 lần |
-| LLM client | `core/llm_client.py` | system/user prompt | JSON hoặc text | Gọi OpenAI API (`gpt-4o-mini`), key từ `.env` |
+| LLM client | `core/llm_client.py` | system/user prompt | JSON hoặc text | Gọi OpenRouter API (`google/gemma-3-4b-it`, OpenAI-compatible), key `OPENROUTER_API_KEY` từ `.env` |
 
 ## 3. Vì sao các agent nghiệp vụ là deterministic (không gọi LLM để ra quyết định)
 
@@ -102,9 +102,9 @@ payment:      {payments[{sequential,value}], payment_total, item_total, freight_
 - README mục 9 yêu cầu ưu tiên dữ liệu kiểm chứng được, không tự suy diễn — rule-based deterministic là cách đảm bảo điều này tuyệt đối.
 - Việc chia thành 6 module riêng biệt (Order/Seller, Delivery, Payment, Policy, Verifier, Coordinator) với handoff JSON theo đúng contract vẫn thể hiện đúng tinh thần multi-agent (phân công, handoff, kiểm chứng chéo — không phải một prompt xử lý hết), dù không mỗi agent đều gọi LLM.
 
-**Nơi LLM (`gpt-4o-mini`) thực sự được dùng:** Coordinator gọi 1 lần/case tới `gpt-4o-mini` (khai trong `core/llm_client.py`) để đối chiếu nội dung khiếu nại tự nhiên của khách với `primary_issue` đã quyết định theo rule — mang tính triage/log, best-effort (lỗi gọi API không làm fail case), **không bao giờ override** quyết định deterministic. Kết quả được ghi vào `logging/trace.jsonl`, không đưa vào `output/EC_xxx.json`.
+**Nơi LLM (`google/gemma-3-4b-it`) thực sự được dùng:** Coordinator gọi 1 lần/case tới `google/gemma-3-4b-it` qua OpenRouter (khai trong `core/llm_client.py`) để đối chiếu nội dung khiếu nại tự nhiên của khách với `primary_issue` đã quyết định theo rule — mang tính triage/log, best-effort (lỗi gọi API không làm fail case), **không bao giờ override** quyết định deterministic. Kết quả được ghi vào `logging/trace.jsonl`, không đưa vào `output/EC_xxx.json`.
 
-> Lưu ý rủi ro: OpenAI không công bố số tham số của `gpt-4o-mini` nên không thể chứng minh tuyệt đối tuân thủ ràng buộc "≤10B parameters" (README mục 9.1). Nhóm đã cân nhắc và chọn model này theo quyết định chung; vì phần dùng LLM chỉ là triage phụ trợ (không quyết định output), rủi ro với điểm số được giảm thiểu tối đa.
+> Model: `google/gemma-3-4b-it` — 4B tham số, Google công bố công khai, tuân thủ chắc chắn ràng buộc "≤10B parameters" (README mục 9.1). Ban đầu nhóm định dùng Gemma 9B (Gemma 2 9B / Gemma 3 9B), nhưng đã xác minh qua model-list API của cả Google AI Studio và OpenRouter: model này **không còn được phục vụ ở bất kỳ đâu** (404 not found), nên chuyển sang `gemma-3-4b-it` — bản Gemma gần nhất còn khả dụng và có param count công bố rõ ràng dưới ngưỡng.
 
 ## 4. Hard gate và cách tránh bị 0 điểm
 
